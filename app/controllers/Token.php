@@ -9,7 +9,7 @@ require_once __DIR__ . "/../models/TokenModel.php";
  * トークンはAPI経由では登録・更新しないため、BaseMethodはimplimentsしない
  * （ユーザークラスの認証で発行される）
  */
-class Token
+class Token extends Base
 {
     /**
      * ルーティング登録
@@ -29,38 +29,35 @@ class Token
      *
      * @return void
      */
-    public function valid()
+    public function valid(): void
     {
-        $route = "PUT /api/v1/tokens/valid";
         // POSTデータ取得
-        $token = Flight::request()->data->token ?? '';
+        $token = $this->getBodyString("token", "");
 
         if (empty($token))
         {
-            // 送信前に確認済みだが念のためどちらかでも入力されていなければBAD REQUEST
+            // 送信前に確認済みだが念のため入力されていなければBAD REQUEST
             $this->resultJson(
                 [],
                 400,
-                $route,
+                $this->route,
                 "パラメーターが正しくありません"
             );
         }
         else
         {
-            $expand_token = $this->expandID($token);
-            $row = TokenModel::validToken($expand_token);
-
-            if (count($row) === 0)
+            if ($this->validToken($token))
             {
-                $result = "NG";
-                $message = "認証できませんでした";
-            }
-            else
-            {
-                TokenModel::expandToken($expand_token);
+                // 有効な場合は有効期限を延長する
+                TokenModel::extendToken($this->expandID($token));
 
                 $result = "OK";
                 $message = "認証OKです";
+            }
+            else
+            {
+                $result = "NG";
+                $message = "認証できませんでした";
             }
 
             $this->resultJson(
@@ -68,7 +65,7 @@ class Token
                     "valid" => $result
                 ],
                 200,
-                $route,
+                $this->route,
                 $message
             );
         }

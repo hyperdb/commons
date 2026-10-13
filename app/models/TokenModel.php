@@ -20,7 +20,7 @@ class TokenModel
 SELECT COUNT(*) cnt
   FROM tokens
  WHERE token = ?
-   AND expired_time >= UNIX_TIMESTAMP()
+   AND expired_at >= UNIX_TIMESTAMP()
 EOS;
         $row = BaseModel::fetchRow($sql, [
             $uuid
@@ -40,7 +40,7 @@ EOS;
 INSERT INTO tokens (
     token
    ,owner
-   ,expired_time
+   ,expired_at
    ,created_at
    ,updated_at
 ) VALUES (
@@ -58,13 +58,27 @@ EOS;
     }
 
     /**
+     * トークンの有効期限を延長する（現時点 + 60 * 60秒）
+     *
+     * @param string $uuid (短縮化したものではない)
+     * @return int
+     */
+    public static function extendToken(string $uuid): int
+    {
+        $sql = "UPDATE tokens SET expired_at = UNIX_TIMESTAMP() + 60 * 60 WHERE token = ?";
+        return BaseModel::query($sql, [
+            $uuid
+        ]);
+    }
+
+    /**
      * 期限切れのトークンをクリアする
      *
      * @return void
      */
     public static function clearExpiredToken(): void
     {
-        $sql = "DELETE FROM tokens WHERE expired_time <= UNIX_TIMESTAMP()";
+        $sql = "DELETE FROM tokens WHERE expired_at <= UNIX_TIMESTAMP()";
         BaseModel::query($sql, []);
     }
 }

@@ -120,13 +120,13 @@ class Base
      */
     public function validToken(string $shortenToken = ""): bool
     {
-        // 対象がなければfalse
-        if (empty($shortenToken))
+        // 短縮トークンの形式（Base64URL・22文字）でなければfalse（復元処理での例外を防ぐ）
+        if (!preg_match('/^[A-Za-z0-9_-]{22}$/', $shortenToken))
         {
             return false;
         }
         // 復元してUUID V4に戻す
-        $uuid = Base::expandID($shortenToken);
+        $uuid = $this->expandID($shortenToken);
         // 期限内のトークンを検索
         return TokenModel::checkToken($uuid) > 0 ? true : false;
     }
@@ -140,11 +140,13 @@ class Base
      */
     public function getStringParam(string $key, string $default = ""): string
     {
-        if ($this->isNullString(Flight::request()->query[$key]))
+        $value = Flight::request()->query[$key] ?? null;
+        // 未指定・配列などの文字列化できない値は既定値にする
+        if (!is_scalar($value) || $this->isNullString(strval($value)))
         {
             return $default;
         }
-        return strval(Flight::request()->query[$key]);
+        return strval($value);
     }
 
     /**
@@ -156,20 +158,58 @@ class Base
      */
     public function getIntParam(string $key, int $default = 0): int
     {
-        if ($this->isNullString(Flight::request()->query[$key]))
+        $value = Flight::request()->query[$key] ?? null;
+        // 未指定・配列などの数値化できない値は既定値にする
+        if (!is_scalar($value) || $this->isNullString(strval($value)))
         {
             return $default;
         }
-        return intval(Flight::request()->query[$key]);
+        return intval($value);
+    }
+
+    /**
+     * 一覧取得のページングパラメータを取得（不正な値は補正する）
+     *
+     * @return array{page: int, rows: int}
+     */
+    public function getPagingParams(): array
+    {
+        $page = $this->getIntParam("page", 0);
+        $rows = $this->getIntParam("rows", 10);
+
+        return [
+            // 負のページ番号は0として扱う
+            "page" => max($page, 0),
+            // 0以下の件数は既定値として扱う
+            "rows" => $rows > 0 ? $rows : 10,
+        ];
+    }
+
+    /**
+     * string型のボディ（JSON）パラメータを取得（POST / PUT用）
+     *
+     * @param string $key
+     * @param string $default
+     * @return string
+     */
+    public function getBodyString(string $key, string $default = ""): string
+    {
+        $value = Flight::request()->data[$key] ?? null;
+        // 未指定・配列などの文字列化できない値は既定値にする
+        if (!is_scalar($value) || strval($value) === "")
+        {
+            return $default;
+        }
+        return strval($value);
     }
 
     /**
      * Null or Empty の判定
      *
-     * @param string $value
+     * @param ?string $value
      * @return boolean
      */
-    public function isNullString(string $value)
+    public function isNullString(?string $value): bool
     {
         return $value === null || $value === "";
     }

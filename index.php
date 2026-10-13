@@ -9,6 +9,9 @@ use Monolog\Formatter\LineFormatter;
 
 require __DIR__ . '/app/utils/CorsUtil.php';
 
+// APIのバージョン（レスポンスの`api_version`に出力）
+const API_VERSION = '1.0.0';
+
 /**
  * 初期設定
  */

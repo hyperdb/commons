@@ -35,13 +35,12 @@ class User extends Base implements BaseMethod
      */
     public function getList(): void
     {
-        // クエリパラメータの取得
-        $pageNo = $this->getIntParam("page", 0);
-        $rows = $this->getIntParam("rows", 10);
+        // クエリパラメータの取得（不正な値は補正済み）
+        $paging = $this->getPagingParams();
         // 一覧の取得
         $list = UserModel::list(
-            $pageNo * $rows,
-            $rows
+            $paging["page"] * $paging["rows"],
+            $paging["rows"]
         );
         // 取得件数が0件でもOKにする
         $this->resultJson(
@@ -107,7 +106,7 @@ class User extends Base implements BaseMethod
     public function execUpdate(string $username): void
     {
         // POSTデータ取得
-        $password = $this->getStringParam("password", "");
+        $password = $this->getBodyString("password", "");
 
         if (empty($username) || empty($password))
         {
@@ -172,21 +171,16 @@ class User extends Base implements BaseMethod
      */
     public function execAdd(): void
     {
-        $route = "POST /api/v1/users/";
         // POSTデータ取得
-        $username = $this->getStringParam("username", "");
-        $password = $this->getStringParam("password", "");
+        $id = $this->getBodyString("id", "");
+        $password = $this->getBodyString("password", "");
 
-        $data = [
-            "username" => $username ?? '',
-            "password" => $password ?? ''
-        ];
-
-        if (empty($username) || empty($password))
+        if (empty($id) || empty($password))
         {
             // 送信前に確認済みだが念のためどちらかでも入力されていなければBAD REQUEST
+            // （パスワードはレスポンスに含めない）
             $this->resultJson(
-                $data,
+                [],
                 400,
                 $this->route,
                 "パラメーターが正しくありません"
@@ -195,12 +189,13 @@ class User extends Base implements BaseMethod
         else
         {
             UserModel::add(
-                $username,
+                $id,
                 $this->generateHash($password)
             );
+            // 登録したユーザー情報を返す（password_hashは含まない）
             $this->resultJson(
-                $data,
-                200,
+                UserModel::detail($id),
+                201,
                 $this->route,
                 "登録できました"
             );
@@ -231,14 +226,13 @@ class User extends Base implements BaseMethod
      */
     public function execAuth(string $username): void
     {
-        $route = "POST /api/v1/users/auth/" . $username;
         // POSTデータ取得
-        $password = $this->getStringParam("password", "");
+        $password = $this->getBodyString("password", "");
 
-        // ユーザーデータを取得
-        $user = UserModel::detail($username);
+        // パスワードハッシュを取得（ユーザーが存在しなければ空文字）
+        $password_hash = UserModel::findPasswordHash($username);
         // 入力されたパスワードでVerifyする
-        if (count($user) > 0 && password_verify($password, $user["password_hash"]))
+        if ($password_hash !== "" && password_verify($password, $password_hash))
         {
             $token = $this->addToken($username);
             $this->resultJson(

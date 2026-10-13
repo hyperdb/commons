@@ -9,18 +9,38 @@ require_once __DIR__ . '/BaseModel.php';
 class UserModel
 {
     /**
+     * レスポンスに含める列（password_hashは絶対に含めない）
+     */
+    private const PUBLIC_COLUMNS = "id, user_level, created_at, updated_at";
+
+    /**
      * 指定したIDのユーザーを取得
-     * 
-     * @param string $username
+     *
+     * @param string $id
      * @return array
      */
-    public static function detail(string $username): array
+    public static function detail(string $id): array
     {
-        $sql = "SELECT * FROM users WHERE username = ?";
+        $sql = "SELECT " . self::PUBLIC_COLUMNS . " FROM users WHERE id = ?";
         $row = BaseModel::fetchRow($sql, [
-            $username
+            $id
         ]);
         return $row?->getData() ?? [];
+    }
+
+    /**
+     * 指定したIDのパスワードハッシュを取得（ログイン認証専用）
+     *
+     * @param string $id
+     * @return string (該当なしの場合は空文字)
+     */
+    public static function findPasswordHash(string $id): string
+    {
+        $sql = "SELECT password_hash FROM users WHERE id = ?";
+        $row = BaseModel::fetchRow($sql, [
+            $id
+        ]);
+        return $row['password_hash'] ?? '';
     }
 
     /**
@@ -32,7 +52,7 @@ class UserModel
      */
     public static function list(int $index, int $perPage): array
     {
-        $sql = "SELECT * FROM users LIMIT ?, ?";
+        $sql = "SELECT " . self::PUBLIC_COLUMNS . " FROM users LIMIT ?, ?";
         return BaseModel::fetchAll($sql, [
             $index,
             $perPage
@@ -42,45 +62,45 @@ class UserModel
     /**
      * ユーザー更新（実質はパスワード変更）
      *
-     * @param string $username
+     * @param string $id
      * @param string $password_hash
      * @return integer
      */
-    public static function update(string $username, string $password_hash): int
+    public static function update(string $id, string $password_hash): int
     {
-        $sql = "UPDATE users SET password_hash = ? WHERE username = ?";
+        $sql = "UPDATE users SET password_hash = ? WHERE id = ?";
         return BaseModel::query($sql, [
             $password_hash,
-            $username
+            $id
         ]);
     }
 
     /**
      * ユーザー削除
      *
-     * @param string $username
+     * @param string $id
      * @return integer
      */
-    public static function delete(string $username): int
+    public static function delete(string $id): int
     {
-        $sql = "DELETE FROM users WHERE username = ?";
+        $sql = "DELETE FROM users WHERE id = ?";
         return BaseModel::query($sql, [
-            $username
+            $id
         ]);
     }
 
     /**
      * ユーザー追加
      *
-     * @param string $username
+     * @param string $id
      * @param string $password_hash
      * @return integer
      */
-    public static function add(string $username, string $password_hash): int
+    public static function add(string $id, string $password_hash): int
     {
-        $sql = "INSERT INTO users ( username, password_hash) VALUES ( ?, ? )";
+        $sql = "INSERT INTO users ( id, password_hash) VALUES ( ?, ? )";
         return BaseModel::query($sql, [
-            $username,
+            $id,
             $password_hash
         ]);
     }
