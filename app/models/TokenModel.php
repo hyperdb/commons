@@ -31,10 +31,11 @@ EOS;
     /**
      * ユーザートークンを追加する
      * 
-     * @param string $username
+     * @param string $user_id
+     * @param string $uuid (短縮化したものではない)
      * @return int
      */
-    public static function addToken(string $username, string $uuid): int
+    public static function addToken(string $user_id, string $uuid): int
     {
         $sql = <<< EOS
 INSERT INTO tokens (
@@ -53,7 +54,7 @@ INSERT INTO tokens (
 EOS;
         return BaseModel::query($sql, [
             $uuid,
-            $username
+            $user_id
         ]);
     }
 

@@ -54,14 +54,14 @@ class User extends Base implements BaseMethod
     /**
      * ユーザー追加
      *
-     * @param string $username
+     * @param string $user_id
      * @param string $password
      * @return integer
      */
-    public function add(string $username, string $password): int
+    public function add(string $user_id, string $password): int
     {
         return UserModel::add(
-            $username,
+            $user_id,
             $this->generateHash($password)
         );
     }
@@ -69,13 +69,13 @@ class User extends Base implements BaseMethod
     /**
      * ユーザー詳細の取得
      *
-     * @param string $username
+     * @param string $user_id
      * @return void
      */
-    public function getDetail(string $username): void
+    public function getDetail(string $user_id): void
     {
         // 詳細の取得
-        $user = UserModel::detail($username);
+        $user = UserModel::detail($user_id);
         if (count($user) > 0)
         {
             $this->resultJson(
@@ -100,15 +100,15 @@ class User extends Base implements BaseMethod
     /**
      * ユーザーの更新
      *
-     * @param string $username
+     * @param string $user_id
      * @return void
      */
-    public function execUpdate(string $username): void
+    public function execUpdate(string $user_id): void
     {
         // POSTデータ取得
         $password = $this->getBodyString("password", "");
 
-        if (empty($username) || empty($password))
+        if (empty($user_id) || empty($password))
         {
             // 送信前に確認済みだが念のためどちらかでも入力されていなければBAD REQUEST
             $this->resultJson(
@@ -121,8 +121,8 @@ class User extends Base implements BaseMethod
         else
         {
             UserModel::update(
-                $username,
-                User::generateHash($password)
+                $user_id,
+                $this->generateHash($password)
             );
 
             $this->resultJson(
@@ -137,12 +137,12 @@ class User extends Base implements BaseMethod
     /**
      * ユーザーの削除
      *
-     * @param string $username
+     * @param string $user_id
      * @return void
      */
-    public function execDelete(string $username): void
+    public function execDelete(string $user_id): void
     {
-        if (empty($username))
+        if (empty($user_id))
         {
             // 送信前に確認済みだが念のため入力されていなければBAD REQUEST
             $this->resultJson(
@@ -154,7 +154,7 @@ class User extends Base implements BaseMethod
         }
         else
         {
-            UserModel::delete($username);
+            UserModel::delete($user_id);
             $this->resultJson(
                 [],
                 200,
@@ -205,15 +205,15 @@ class User extends Base implements BaseMethod
     /**
      * ユーザートークンを追加する
      * 
-     * @param string $username
+     * @param string $user_id
      * @return string
      */
-    public function addToken(string $username): string
+    public function addToken(string $user_id): string
     {
         $uuid = $this->generateUUID();
 
         TokenModel::clearExpiredToken();
-        TokenModel::addToken($username, $uuid);
+        TokenModel::addToken($user_id, $uuid);
 
         return $this->shortenID($uuid);
     }
@@ -221,20 +221,20 @@ class User extends Base implements BaseMethod
     /**
      * ユーザー認証
      *
-     * @param string $username
+     * @param string $user_id
      * @return void
      */
-    public function execAuth(string $username): void
+    public function execAuth(string $user_id): void
     {
         // POSTデータ取得
         $password = $this->getBodyString("password", "");
 
         // パスワードハッシュを取得（ユーザーが存在しなければ空文字）
-        $password_hash = UserModel::findPasswordHash($username);
+        $password_hash = UserModel::findPasswordHash($user_id);
         // 入力されたパスワードでVerifyする
         if ($password_hash !== "" && password_verify($password, $password_hash))
         {
-            $token = $this->addToken($username);
+            $token = $this->addToken($user_id);
             $this->resultJson(
                 [
                     "token" => $token
