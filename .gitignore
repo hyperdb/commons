@@ -1,0 +1,26 @@
+# for CodeIgniter
+#-------------------------
+
+.DS_Store
+
+/vendor/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+#
+# ------------------------------
+.env*
+data/*
+*.log
+
+# 進捗メモ（Syncthingで同期・コミット対象外）
+.notes/

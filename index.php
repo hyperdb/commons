@@ -1,0 +1,81 @@
+<?php
+
+require './vendor/autoload.php';
+
+use Monolog\Level;
+// use Monolog\Logger;
+use Monolog\Handler\RotatingFileHandler;
+use Monolog\Formatter\LineFormatter;
+
+require __DIR__ . '/app/utils/CorsUtil.php';
+
+/**
+ * 初期設定
+ */
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+Flight::register('db', \flight\database\SimplePdo::class, [
+    sprintf("mysql:host=%s;dbname=%s;charset=utf8mb4", $_ENV['DB_HOST'], $_ENV['DB_NAME']),
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASS'],
+    [
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_STRINGIFY_FETCHES => false,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]
+]);
+
+$date_format = "Y-m-d H:i:s.v";
+$logFormat = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
+$formatter = new LineFormatter($logFormat, $date_format);
+
+$stream = new RotatingFileHandler(__DIR__ . '/logs/api.log', 0, Level::Debug);
+$stream->setFormatter($formatter);
+Flight::register('logger', Monolog\Logger::class, [
+    'writer',
+    [
+        $stream
+    ]
+]);
+
+/**
+ * ルーティング
+ */
+require_once './app/controllers/User.php';
+require_once './app/controllers/Token.php';
+
+Flight::group('/api', function ()
+{
+    Flight::group('/v1', function ()
+    {
+        User::registerRoutes();
+        Token::registerRoutes();
+    });
+});
+
+
+Flight::route('/', function ()
+{
+    echo 'hello world!';
+});
+
+Flight::route('/json', function ()
+{
+    Flight::json([
+        'hello' => 'world'
+    ]);
+});
+
+
+/**
+ * 前処理
+ */
+// CORS対応
+$app = Flight::app();
+$cors = new CorsUtil($app);
+$app->before('start', [$cors, 'set']);
+/**
+ * 処理開始
+ */
+Flight::start();
