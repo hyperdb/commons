@@ -9,23 +9,26 @@ require_once __DIR__ . '/BaseModel.php';
 class TokenModel
 {
     /**
-     * トークンの有効性をチェック
-     * 
-     * @oaram string $uuid (短縮化したものではない)
-     * @return int
+     * 有効期限内のトークンの所有ユーザーを取得
+     *
+     * @param string $uuid (短縮化したものではない)
+     * @return array{owner?: string, user_level?: string} (無効なトークンの場合は空配列)
      */
-    public static function checkToken(string $uuid): int
+    public static function findOwner(string $uuid): array
     {
         $sql = <<< EOS
-SELECT COUNT(*) cnt
-  FROM tokens
- WHERE token = ?
-   AND expired_at >= UNIX_TIMESTAMP()
+SELECT t.owner
+      ,u.user_level
+  FROM tokens t
+ INNER JOIN users u
+    ON u.id = t.owner
+ WHERE t.token = ?
+   AND t.expired_at >= UNIX_TIMESTAMP()
 EOS;
         $row = BaseModel::fetchRow($sql, [
             $uuid
         ]);
-        return $row ? $row['cnt'] : 0;
+        return $row?->getData() ?? [];
     }
 
     /**

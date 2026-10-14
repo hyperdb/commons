@@ -12,6 +12,7 @@ class UserValidator extends BaseValidator
      */
     public string $id;
     public string $password;
+    public string $user_level;
 
     /**
      * バリデーションルール
@@ -36,6 +37,13 @@ class UserValidator extends BaseValidator
                 "maxLength:72", // 72文字以下（bcryptの上限）
                 ["matchPattern", "/^[\x21-\x7e]+$/"],   // 半角の英数字・記号のみ（空白不可）
                 "useAllChar"    // すべての文字種
+            ]
+        ],
+        "user_level" => [
+            "label" => "権限レベル",
+            "pattern" => [
+                "required",     // 必須
+                ["matchPattern", "/^(000|001|010|111)$/"]   // 定義済みの権限レベルのみ
             ]
         ],
     ];

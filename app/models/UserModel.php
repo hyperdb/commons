@@ -60,7 +60,7 @@ class UserModel
     }
 
     /**
-     * ユーザー更新（実質はパスワード変更）
+     * ユーザー更新（パスワード変更）
      *
      * @param string $id
      * @param string $password_hash
@@ -71,6 +71,22 @@ class UserModel
         $sql = "UPDATE users SET password_hash = ? WHERE id = ?";
         return BaseModel::query($sql, [
             $password_hash,
+            $id
+        ]);
+    }
+
+    /**
+     * 権限レベルの変更
+     *
+     * @param string $id
+     * @param string $user_level
+     * @return integer
+     */
+    public static function updateLevel(string $id, string $user_level): int
+    {
+        $sql = "UPDATE users SET user_level = ? WHERE id = ?";
+        return BaseModel::query($sql, [
+            $user_level,
             $id
         ]);
     }
@@ -94,14 +110,16 @@ class UserModel
      *
      * @param string $id
      * @param string $password_hash
+     * @param string $user_level
      * @return integer
      */
-    public static function add(string $id, string $password_hash): int
+    public static function add(string $id, string $password_hash, string $user_level): int
     {
-        $sql = "INSERT INTO users ( id, password_hash) VALUES ( ?, ? )";
+        $sql = "INSERT INTO users ( id, password_hash, user_level) VALUES ( ?, ?, ? )";
         return BaseModel::query($sql, [
             $id,
-            $password_hash
+            $password_hash,
+            $user_level
         ]);
     }
 }

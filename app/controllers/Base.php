@@ -14,6 +14,10 @@ class Base
 {
     protected string $bearer_token;
     protected string $route;
+    /** ログインユーザーのID（authenticate()成功時に設定） */
+    protected string $login_user_id = "";
+    /** ログインユーザーの権限レベル（authenticate()成功時に設定） */
+    protected string $login_user_level = "000";
 
     /**
      * Undocumented function
@@ -120,15 +124,75 @@ class Base
      */
     public function validToken(string $shortenToken = ""): bool
     {
-        // 短縮トークンの形式（Base64URL・22文字）でなければfalse（復元処理での例外を防ぐ）
+        return count($this->findTokenOwner($shortenToken)) > 0;
+    }
+
+    /**
+     * 短縮トークンから有効なトークンの所有ユーザーを取得する
+     *
+     * @param string $shortenToken
+     * @return array{owner?: string, user_level?: string} (無効なトークンの場合は空配列)
+     */
+    protected function findTokenOwner(string $shortenToken): array
+    {
+        // 短縮トークンの形式（Base64URL・22文字）でなければ無効（復元処理での例外を防ぐ）
         if (!preg_match('/^[A-Za-z0-9_-]{22}$/', $shortenToken))
         {
+            return [];
+        }
+        // 復元してUUID V4に戻し、期限内のトークンを検索
+        return TokenModel::findOwner($this->expandID($shortenToken));
+    }
+
+    /**
+     * Bearerトークンで認証する（無効な場合は401を返す）
+     * 有効な場合は有効期限を延長し、ログインユーザーの情報を保持する
+     *
+     * @return boolean 認証できなければfalse（呼び出し元は処理を中断すること）
+     */
+    public function authenticate(): bool
+    {
+        $owner = $this->findTokenOwner($this->bearer_token);
+        if (count($owner) === 0)
+        {
+            $this->resultJson([], 401, $this->route, "認証できませんでした");
             return false;
         }
-        // 復元してUUID V4に戻す
-        $uuid = $this->expandID($shortenToken);
-        // 期限内のトークンを検索
-        return TokenModel::checkToken($uuid) > 0 ? true : false;
+        // トークンが有効なら有効期限を延長する（権限レベル不足の場合も延長する）
+        TokenModel::extendToken($this->expandID($this->bearer_token));
+
+        $this->login_user_id = strval($owner["owner"]);
+        $this->login_user_level = strval($owner["user_level"]);
+        return true;
+    }
+
+    /**
+     * ログインユーザーの権限レベルを確認する（不足している場合は403を返す）
+     * authenticate()の成功後に呼び出すこと
+     *
+     * @param string $required 必要な権限レベル
+     * @return boolean 権限レベルが不足していればfalse（呼び出し元は処理を中断すること）
+     */
+    public function checkLevel(string $required): bool
+    {
+        // 000 < 001 < 010 < 111 の単純な大小比較（同じ桁数の数字文字列なので文字列比較で判定できる）
+        if (strcmp($this->login_user_level, $required) < 0)
+        {
+            $this->resultJson([], 403, $this->route, "権限がありません");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 認証と権限レベルの確認をまとめて行う
+     *
+     * @param string $required 必要な権限レベル
+     * @return boolean 認証できない・権限レベル不足ならfalse（呼び出し元は処理を中断すること）
+     */
+    public function authorize(string $required): bool
+    {
+        return $this->authenticate() && $this->checkLevel($required);
     }
 
     /**

@@ -51,12 +51,18 @@ class BaseValidator
     /**
      * $rulesの定義に従ってバリデーションを実行
      *
+     * @param array<int, string> $properties チェックする項目（省略時は全項目）
      * @return array
      */
-    public function valid(): array
+    public function valid(array $properties = []): array
     {
         foreach ($this->rules as $property => $rule)
         {
+            // ---> 項目の指定があれば、指定された項目のみチェックする
+            if (count($properties) > 0 && !in_array($property, $properties, true))
+            {
+                continue;
+            }
             $this->setValue(
                 $this->{$property} ?? "",
                 $property ?? "unknown",

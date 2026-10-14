@@ -60,13 +60,13 @@ Flight::group('/api', function ()
 
 Flight::route('/', function ()
 {
-    echo 'hello world!';
+    echo 'commons ver.' . API_VERSION;
 });
 
 Flight::route('/json', function ()
 {
     Flight::json([
-        'hello' => 'world'
+        'version' => API_VERSION
     ]);
 });
 

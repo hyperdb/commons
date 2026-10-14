@@ -4,12 +4,19 @@ require_once __DIR__ . "/Base.php";
 require_once __DIR__ . "/BaseMethod.php";
 require_once __DIR__ . "/../models/UserModel.php";
 require_once __DIR__ . "/../models/TokenModel.php";
+require_once __DIR__ . "/../validators/UserValidator.php";
 
 /**
  * ユーザー管理クラス
  */
 class User extends Base implements BaseMethod
 {
+    /**
+     * 登録時に設定する権限レベル（一般ユーザー）
+     * 権限レベルの変更はシステム管理者が`PUT /users/{id}/level`で行う
+     */
+    private const DEFAULT_USER_LEVEL = "001";
+
     /**
      * ルーティング
      *
@@ -21,6 +28,7 @@ class User extends Base implements BaseMethod
         {
             Flight::route('POST /auth/@id', [self::class, 'execAuth']);
             Flight::route('GET /@id',       [self::class, 'getDetail']);
+            Flight::route('PUT /@id/level', [self::class, 'execUpdateLevel']);
             Flight::route('PUT /@id',       [self::class, 'execUpdate']);
             Flight::route('DELETE /@id',    [self::class, 'execDelete']);
             Flight::route('GET /',          [self::class, 'getList']);
@@ -35,6 +43,11 @@ class User extends Base implements BaseMethod
      */
     public function getList(): void
     {
+        // 認証・権限チェック（取得系: 001以上）
+        if (!$this->authorize("001"))
+        {
+            return;
+        }
         // クエリパラメータの取得（不正な値は補正済み）
         $paging = $this->getPagingParams();
         // 一覧の取得
@@ -52,7 +65,7 @@ class User extends Base implements BaseMethod
     }
 
     /**
-     * ユーザー追加
+     * ユーザー追加（権限レベルは既定値で登録する）
      *
      * @param string $user_id
      * @param string $password
@@ -62,7 +75,8 @@ class User extends Base implements BaseMethod
     {
         return UserModel::add(
             $user_id,
-            $this->generateHash($password)
+            $this->generateHash($password),
+            self::DEFAULT_USER_LEVEL
         );
     }
 
@@ -74,6 +88,11 @@ class User extends Base implements BaseMethod
      */
     public function getDetail(string $user_id): void
     {
+        // 認証・権限チェック（取得系: 001以上）
+        if (!$this->authorize("001"))
+        {
+            return;
+        }
         // 詳細の取得
         $user = UserModel::detail($user_id);
         if (count($user) > 0)
@@ -105,6 +124,14 @@ class User extends Base implements BaseMethod
      */
     public function execUpdate(string $user_id): void
     {
+        // 認証・権限チェック（自分のパスワード: 001以上、自分以外: 111のみ）
+        if (
+            !$this->authenticate()
+            || !$this->checkLevel($user_id === $this->login_user_id ? "001" : "111")
+        )
+        {
+            return;
+        }
         // POSTデータ取得
         $password = $this->getBodyString("password", "");
 
@@ -135,6 +162,51 @@ class User extends Base implements BaseMethod
     }
 
     /**
+     * 権限レベルの変更（システム管理者のみ）
+     *
+     * @param string $user_id
+     * @return void
+     */
+    public function execUpdateLevel(string $user_id): void
+    {
+        // 認証・権限チェック（システム管理者: 111のみ）
+        if (!$this->authorize("111"))
+        {
+            return;
+        }
+        // 自分自身の権限レベルは変更できない（管理者が不在になるのを防ぐ）
+        if ($user_id === $this->login_user_id)
+        {
+            $this->resultJson([], 403, $this->route, "自分自身の権限レベルは変更できません");
+            return;
+        }
+        // POSTデータ取得・バリデーション
+        $validator = new UserValidator();
+        $validator->user_level = $this->getBodyString("user_level", "");
+        $errors = $validator->valid(["user_level"]);
+        if (count($errors) > 0)
+        {
+            $this->resultJson(["errors" => $errors], 400, $this->route, "パラメーターが正しくありません");
+            return;
+        }
+        // 対象の存在確認（同じ値でUPDATEすると影響行数が0になるため、更新結果では判定しない）
+        if (count(UserModel::detail($user_id)) === 0)
+        {
+            $this->resultJson([], 404, $this->route, "見つかりませんでした");
+            return;
+        }
+
+        UserModel::updateLevel($user_id, $validator->user_level);
+        // 変更後のユーザー情報を返す（password_hashは含まない）
+        $this->resultJson(
+            UserModel::detail($user_id),
+            200,
+            $this->route,
+            "権限レベルを変更しました"
+        );
+    }
+
+    /**
      * ユーザーの削除
      *
      * @param string $user_id
@@ -142,6 +214,11 @@ class User extends Base implements BaseMethod
      */
     public function execDelete(string $user_id): void
     {
+        // 認証・権限チェック（更新系: 010以上）
+        if (!$this->authorize("010"))
+        {
+            return;
+        }
         if (empty($user_id))
         {
             // 送信前に確認済みだが念のため入力されていなければBAD REQUEST
@@ -171,6 +248,11 @@ class User extends Base implements BaseMethod
      */
     public function execAdd(): void
     {
+        // 認証・権限チェック（更新系: 010以上）
+        if (!$this->authorize("010"))
+        {
+            return;
+        }
         // POSTデータ取得
         $id = $this->getBodyString("id", "");
         $password = $this->getBodyString("password", "");
@@ -188,10 +270,8 @@ class User extends Base implements BaseMethod
         }
         else
         {
-            UserModel::add(
-                $id,
-                $this->generateHash($password)
-            );
+            // 権限レベルは既定値（001）で登録する
+            $this->add($id, $password);
             // 登録したユーザー情報を返す（password_hashは含まない）
             $this->resultJson(
                 UserModel::detail($id),
