@@ -22,5 +22,7 @@
 data/*
 *.log
 
+.phpunit.result.cache
+
 # 進捗メモ（Syncthingで同期・コミット対象外）
 .notes/
