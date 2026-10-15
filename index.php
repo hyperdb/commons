@@ -33,7 +33,7 @@ $date_format = "Y-m-d H:i:s.v";
 $logFormat = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
 $formatter = new LineFormatter($logFormat, $date_format);
 
-$stream = new RotatingFileHandler(__DIR__ . '/logs/api.log', 0, Level::Debug);
+$stream = new RotatingFileHandler(__DIR__ . '/logs/api.log', 7, Level::Debug);
 $stream->setFormatter($formatter);
 Flight::register('logger', Monolog\Logger::class, [
     'writer',
@@ -70,6 +70,16 @@ Flight::route('/json', function ()
     ]);
 });
 
+Flight::map('notFound', function ()
+{
+    Flight::json([
+        'api_version' => API_VERSION,
+        'api_route' => Flight::request()->url,
+        'send_at' => date("Y-m-d H:i:s"),
+        'message' => "Page Not Found.",
+        'data' => []
+    ], 404);
+});
 
 /**
  * 前処理
@@ -78,6 +88,22 @@ Flight::route('/json', function ()
 $app = Flight::app();
 $cors = new CorsUtil($app);
 $app->before('start', [$cors, 'set']);
+
+/**
+ * アクセスログ
+ */
+
+$log_message = sprintf(
+    "%s %s",
+    Flight::request()->method,
+    Flight::request()->url
+);
+$log_params = [
+    "ip" => Flight::request()->ip,
+    "host" => Flight::request()->host,
+];
+Flight::logger()->debug($log_message, $log_params);
+
 /**
  * 処理開始
  */
