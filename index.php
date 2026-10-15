@@ -36,7 +36,7 @@ $formatter = new LineFormatter($logFormat, $date_format);
 $stream = new RotatingFileHandler(__DIR__ . '/logs/api.log', 7, Level::Debug);
 $stream->setFormatter($formatter);
 Flight::register('logger', Monolog\Logger::class, [
-    'writer',
+    'commons',
     [
         $stream
     ]
