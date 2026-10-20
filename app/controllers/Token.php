@@ -46,24 +46,29 @@ class Token extends Base
         }
         else
         {
-            if ($this->validToken($token))
+            $owner = $this->findTokenOwner($token);
+            if (count($owner) > 0)
             {
                 // 有効な場合は有効期限を延長する
                 TokenModel::extendToken($this->expandID($token));
 
-                $result = "OK";
+                // 有効な場合のみ所有ユーザーIDを返す
+                $data = [
+                    "valid" => "OK",
+                    "user_id" => strval($owner["owner"])
+                ];
                 $message = "認証OKです";
             }
             else
             {
-                $result = "NG";
+                $data = [
+                    "valid" => "NG"
+                ];
                 $message = "認証できませんでした";
             }
 
             $this->resultJson(
-                [
-                    "valid" => $result
-                ],
+                $data,
                 200,
                 $this->route,
                 $message

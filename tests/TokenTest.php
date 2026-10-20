@@ -38,6 +38,7 @@ class TokenTest extends ApiTestCase
 
         $this->assertSame(200, $this->responseStatus());
         $this->assertSame('NG', $this->json()['data']['valid']);
+        $this->assertArrayNotHasKey('user_id', $this->json()['data']);
         $this->assertCount(0, $this->db->queries);
     }
 
@@ -51,18 +52,20 @@ class TokenTest extends ApiTestCase
 
         $this->assertSame(200, $this->responseStatus());
         $this->assertSame('NG', $this->json()['data']['valid']);
+        $this->assertArrayNotHasKey('user_id', $this->json()['data']);
         $this->assertFalse($this->tokenExtended());
     }
 
-    #[TestDox('有効なトークンは200でOK、有効期限を延長する')]
+    #[TestDox('有効なトークンは200でOK、所有ユーザーIDを返し、有効期限を延長する')]
     public function testValidTokenIsOkAndExtended(): void
     {
-        $token = $this->loginAs('001');
+        $token = $this->loginAs('001', 'bob');
 
         $this->callValid(['token' => $token]);
 
         $this->assertSame(200, $this->responseStatus());
         $this->assertSame('OK', $this->json()['data']['valid']);
+        $this->assertSame('bob', $this->json()['data']['user_id']);
         $this->assertTrue($this->tokenExtended());
         // 延長対象は、短縮トークンを復元したUUID
         $extend = $this->db->executed('UPDATE tokens SET expired_at')[0];
