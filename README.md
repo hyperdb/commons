@@ -10,7 +10,6 @@
 ## 運用環境
 
 - お名前サーバー RSプラン
-  - `https://commons.hyperdb.cloud`
 
 ## 技術スタック
 
@@ -29,3 +28,7 @@
 ## テスト
 
 - 各APIのテストはPHPUnitを利用して行う。
+
+## ライセンス
+
+[MIT License](LICENSE)
