@@ -1,714 +1,721 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "commons API",
-    "version": "1.0.0",
-    "description": "個人サイトで共通に利用するREST APIサーバー（FlightPHP + MySQL）。\n\n共通ルールは`/documents/api-conventions.md`、エンドポイント仕様は`/documents/api/<リソース名>.md`を正本とする。\n\n## 権限レベル\n\n`000`（権限なし） < `001`（一般ユーザー） < `010`（編集可能ユーザー） < `111`（システム管理者）の単純な大小で比較する。\n\n- 取得系（GET）: `001`以上\n- 更新系（POST / PUT / DELETE）: `010`以上\n- 個別に記載がある場合はそちらを優先\n\n## トークン\n\n- `POST /users/auth/{id}`で発行された短縮トークン（Base64URL・22文字）を`Authorization: Bearer <token>`で付与する\n- 有効期限内であれば処理を行い、有効期限を延長する（現状は仮で1時間）。権限レベル不足（403）の場合も延長する",
-    "contact": {
-      "name": "",
-      "url": "",
-      "email": ""
-    },
-    "license": {
-      "name": "MIT",
-      "identifier": "MIT"
-    }
-  },
-  "servers": [
-    {
-      "url": "https://commons.hyperdb.cloud/api/v1",
-      "description": "本番"
-    },
-    {
-      "url": "",
-      "description": "ローカル開発環境（URL不明のため要記入）"
-    }
-  ],
-  "tags": [
-    {
-      "name": "users",
-      "description": "ユーザー"
-    },
-    {
-      "name": "tokens",
-      "description": "トークン"
-    }
-  ],
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ],
-  "paths": {
-    "/users/auth/{id}": {
-      "post": {
-        "tags": ["users"],
-        "summary": "ログイン認証",
-        "description": "パスワードを検証し、短縮トークンを発行する。認証時に期限切れトークンを削除する。\nIDが存在しない場合もパスワード違いと同じ応答（401）にする。",
-        "operationId": "authUser",
-        "security": [],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/UserId"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["password"],
-                "properties": {
-                  "password": {
-                    "$ref": "#/components/schemas/Password"
-                  }
-                }
-              }
-            }
-          }
+    "openapi": "3.1.0",
+    "info": {
+        "title": "commons API",
+        "version": "1.0.0",
+        "description": "個人サイトで共通に利用するREST APIサーバー（FlightPHP + MySQL）。\n\n共通ルールは`/documents/api-conventions.md`、エンドポイント仕様は`/documents/api/<リソース名>.md`を正本とする。\n\n## 権限レベル\n\n`000`（権限なし） < `001`（一般ユーザー） < `010`（編集可能ユーザー） < `111`（システム管理者）の単純な大小で比較する。\n\n- 取得系（GET）: `001`以上\n- 更新系（POST / PUT / DELETE）: `010`以上\n- 個別に記載がある場合はそちらを優先\n\n## トークン\n\n- `POST /users/auth/{id}`で発行された短縮トークン（Base64URL・22文字）を`Authorization: Bearer <token>`で付与する\n- 有効期限内であれば処理を行い、有効期限を延長する（現状は仮で1時間）。権限レベル不足（403）の場合も延長する",
+        "contact": {
+            "name": "",
+            "url": "",
+            "email": ""
         },
-        "responses": {
-          "200": {
-            "description": "認証成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/ResponseBase" },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "object",
-                          "required": ["token"],
-                          "properties": {
-                            "token": {
-                              "$ref": "#/components/schemas/ShortToken"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                },
-                "example": {
-                  "api_version": "1.0.0",
-                  "api_route": "/api/v1/users/auth/abcd",
-                  "send_at": "2026-10-13 17:00:00",
-                  "message": "認証OKです",
-                  "data": {
-                    "token": "AbCdEfGhIjKlMnOpQrStUv"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
+        "license": {
+            "name": "MIT",
+            "identifier": "MIT"
         }
-      }
     },
-    "/users": {
-      "get": {
-        "tags": ["users"],
-        "summary": "一覧取得",
-        "description": "必要な権限レベル: `001`以上",
-        "operationId": "listUsers",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/Page"
-          },
-          {
-            "$ref": "#/components/parameters/Rows"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "取得成功（該当なしは空配列）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/ResponseBase" },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/User"
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "post": {
-        "tags": ["users"],
-        "summary": "登録",
-        "description": "必要な権限レベル: `010`以上\n\n権限レベルは`001`（一般ユーザー）で登録される。",
-        "operationId": "addUser",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["id", "password"],
-                "properties": {
-                  "id": {
-                    "$ref": "#/components/schemas/UserIdValue"
-                  },
-                  "password": {
-                    "$ref": "#/components/schemas/Password"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "$ref": "#/components/responses/UserResult"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/users/{id}": {
-      "parameters": [
+    "servers": [
         {
-          "$ref": "#/components/parameters/UserId"
-        }
-      ],
-      "get": {
-        "tags": ["users"],
-        "summary": "詳細取得",
-        "description": "必要な権限レベル: `001`以上",
-        "operationId": "getUser",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/UserResult"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "put": {
-        "tags": ["users"],
-        "summary": "更新（パスワード変更）",
-        "description": "必要な権限レベル（共通ルールの例外）\n\n- 自分のパスワード: `001`以上\n- 自分以外のユーザーのパスワード: `111`（システム管理者）のみ",
-        "operationId": "updateUserPassword",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["password"],
-                "properties": {
-                  "password": {
-                    "$ref": "#/components/schemas/Password"
-                  }
-                }
-              }
-            }
-          }
+            "url": "https://commons.hyperdb.cloud/api/v1",
+            "description": "本番"
         },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/EmptyOk"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
+        {
+            "url": "http://localhost:8001/api/v1",
+            "description": "ローカル開発環境"
         }
-      },
-      "delete": {
-        "tags": ["users"],
-        "summary": "削除",
-        "description": "必要な権限レベル: `010`以上\n\nそのユーザーのトークンも削除される。",
-        "operationId": "deleteUser",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/EmptyOk"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/users/{id}/level": {
-      "put": {
-        "tags": ["users"],
-        "summary": "更新（権限変更）",
-        "description": "必要な権限レベル（共通ルールの例外）\n\n- 自分の権限レベル: 変更できない（403）\n- 自分以外のユーザーの権限レベル: `111`（システム管理者）のみ",
-        "operationId": "updateUserLevel",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/UserId"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["user_level"],
-                "properties": {
-                  "user_level": {
-                    "$ref": "#/components/schemas/UserLevel"
-                  }
-                }
-              }
-            }
-          }
+    ],
+    "tags": [
+        {
+            "name": "users",
+            "description": "ユーザー"
         },
-        "responses": {
-          "200": {
-            "description": "変更成功（ドキュメント上は返却データの記載なし。実装では変更後のユーザー情報を返している）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/ResponseBase" },
+        {
+            "name": "tokens",
+            "description": "トークン"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/users/auth/{id}": {
+            "post": {
+                "tags": ["users"],
+                "summary": "ログイン認証",
+                "description": "パスワードを検証し、短縮トークンを発行する。認証時に期限切れトークンを削除する。\nIDが存在しない場合もパスワード違いと同じ応答（401）にする。",
+                "operationId": "authUser",
+                "security": [],
+                "parameters": [
                     {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/User"
-                        }
-                      }
+                        "$ref": "#/components/parameters/UserId"
                     }
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/tokens/valid": {
-      "post": {
-        "tags": ["tokens"],
-        "summary": "有効性の確認",
-        "description": "チェック対象のトークンをボディで渡すため認証不要。\n有効（OK）の場合は有効期限を延長する。",
-        "operationId": "validToken",
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["token"],
-                "properties": {
-                  "token": {
-                    "$ref": "#/components/schemas/ShortToken"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "確認結果（`user_id`は有効（OK）の場合のみ含める）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/ResponseBase" },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "oneOf": [
-                            {
-                              "type": "object",
-                              "required": ["valid", "user_id"],
-                              "properties": {
-                                "valid": { "const": "OK" },
-                                "user_id": {
-                                  "$ref": "#/components/schemas/UserIdValue"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["password"],
+                                "properties": {
+                                    "password": {
+                                        "$ref": "#/components/schemas/Password"
+                                    }
                                 }
-                              }
-                            },
-                            {
-                              "type": "object",
-                              "required": ["valid"],
-                              "properties": {
-                                "valid": { "const": "NG" }
-                              },
-                              "additionalProperties": false
                             }
-                          ]
                         }
-                      }
                     }
-                  ]
                 },
-                "examples": {
-                  "ok": {
-                    "summary": "有効",
-                    "value": {
-                      "api_version": "1.0.0",
-                      "api_route": "/api/v1/tokens/valid",
-                      "send_at": "2026-10-13 17:00:00",
-                      "message": "認証OKです",
-                      "data": { "valid": "OK", "user_id": "abcd" }
+                "responses": {
+                    "200": {
+                        "description": "認証成功",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResponseBase"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "type": "object",
+                                                    "required": ["token"],
+                                                    "properties": {
+                                                        "token": {
+                                                            "$ref": "#/components/schemas/ShortToken"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "example": {
+                                    "api_version": "1.0.0",
+                                    "api_route": "/api/v1/users/auth/abcd",
+                                    "send_at": "2026-10-13 17:00:00",
+                                    "message": "認証OKです",
+                                    "data": {
+                                        "token": "AbCdEfGhIjKlMnOpQrStUv"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
                     }
-                  },
-                  "ng": {
-                    "summary": "無効",
-                    "value": {
-                      "api_version": "1.0.0",
-                      "api_route": "/api/v1/tokens/valid",
-                      "send_at": "2026-10-13 17:00:00",
-                      "message": "認証できませんでした",
-                      "data": { "valid": "NG" }
-                    }
-                  }
                 }
-              }
             }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "`POST /users/auth/{id}`で発行された短縮トークン（Base64URL・22文字）"
-      }
-    },
-    "parameters": {
-      "UserId": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "description": "ユーザーID",
-        "schema": {
-          "$ref": "#/components/schemas/UserIdValue"
-        }
-      },
-      "Page": {
-        "name": "page",
-        "in": "query",
-        "required": false,
-        "description": "ページ番号（0始まり）。負の値は0として扱う。最終ページを超えた場合は空配列を返す",
-        "schema": {
-          "type": "integer",
-          "default": 0
-        }
-      },
-      "Rows": {
-        "name": "rows",
-        "in": "query",
-        "required": false,
-        "description": "1ページあたりの件数。0以下は既定値（10）として扱う",
-        "schema": {
-          "type": "integer",
-          "default": 10
-        }
-      }
-    },
-    "schemas": {
-      "ResponseBase": {
-        "type": "object",
-        "description": "共通レスポンス形式",
-        "required": ["api_version", "api_route", "send_at", "message", "data"],
-        "properties": {
-          "api_version": {
-            "type": "string",
-            "description": "APIのバージョン",
-            "examples": ["1.0.0"]
-          },
-          "api_route": {
-            "type": "string",
-            "description": "リクエストされたURL",
-            "examples": ["/api/v1/users/abcd"]
-          },
-          "send_at": {
-            "type": "string",
-            "description": "レスポンス送信日時（`Y-m-d H:i:s`、日本時間）",
-            "examples": ["2026-10-13 17:00:00"]
-          },
-          "message": {
-            "type": "string",
-            "description": "利用者向けの日本語メッセージ"
-          },
-          "data": {
-            "description": "結果データ。一覧はオブジェクトの配列、該当なしは空配列"
-          }
-        }
-      },
-      "ErrorResponse": {
-        "allOf": [
-          { "$ref": "#/components/schemas/ResponseBase" },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "type": ["object", "array"],
-                "description": "バリデーションエラーの場合は`errors`に項目名をキーとしたエラーメッセージの配列を入れる。それ以外は空配列",
-                "properties": {
-                  "errors": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "array",
-                      "items": { "type": "string" }
+        },
+        "/users": {
+            "get": {
+                "tags": ["users"],
+                "summary": "一覧取得",
+                "description": "必要な権限レベル: `001`以上",
+                "operationId": "listUsers",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/Page"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Rows"
                     }
-                  }
-                }
-              }
-            }
-          }
-        ]
-      },
-      "User": {
-        "type": "object",
-        "description": "ユーザー情報（`password_hash`は返さない）",
-        "required": ["id", "user_level", "created_at", "updated_at"],
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/UserIdValue"
-          },
-          "user_level": {
-            "$ref": "#/components/schemas/UserLevel"
-          },
-          "created_at": {
-            "type": "string",
-            "description": "データ作成日時",
-            "examples": ["2026-10-13 17:00:00"]
-          },
-          "updated_at": {
-            "type": "string",
-            "description": "データ更新日時",
-            "examples": ["2026-10-13 17:00:00"]
-          }
-        }
-      },
-      "UserIdValue": {
-        "type": "string",
-        "description": "ユーザーID（半角の英小文字と数字、4文字以上32文字以内）",
-        "minLength": 4,
-        "maxLength": 32,
-        "pattern": "^[a-z0-9]+$",
-        "examples": ["abcd"]
-      },
-      "Password": {
-        "type": "string",
-        "format": "password",
-        "description": "パスワード（8文字以上72文字以内、半角の英数字・記号のみ。英大文字・英小文字・数字・記号をそれぞれ1文字以上含む）",
-        "minLength": 8,
-        "maxLength": 72,
-        "pattern": "^[\\x21-\\x7e]+$"
-      },
-      "UserLevel": {
-        "type": "string",
-        "description": "権限レベル（`000`: 権限なし / `001`: 一般ユーザー / `010`: 編集可能ユーザー / `111`: システム管理者）",
-        "enum": ["000", "001", "010", "111"]
-      },
-      "ShortToken": {
-        "type": "string",
-        "description": "短縮トークン（Base64URL・22文字）",
-        "pattern": "^[A-Za-z0-9_-]{22}$",
-        "examples": ["AbCdEfGhIjKlMnOpQrStUv"]
-      }
-    },
-    "responses": {
-      "UserResult": {
-        "description": "成功（ユーザー情報を返す）",
-        "content": {
-          "application/json": {
-            "schema": {
-              "allOf": [
-                { "$ref": "#/components/schemas/ResponseBase" },
-                {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/User"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "取得成功（該当なしは空配列）",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResponseBase"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/User"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
                     }
-                  }
                 }
-              ]
-            }
-          }
-        }
-      },
-      "EmptyOk": {
-        "description": "成功（`data`は空配列）",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ResponseBase"
-            }
-          }
-        }
-      },
-      "BadRequest": {
-        "description": "パラメータ不足・バリデーションエラー",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
             },
-            "example": {
-              "api_version": "1.0.0",
-              "api_route": "/api/v1/users",
-              "send_at": "2026-10-13 17:00:00",
-              "message": "パラメーターが正しくありません",
-              "data": {
-                "errors": {
-                  "password": ["パスワードは8文字以上です"]
+            "post": {
+                "tags": ["users"],
+                "summary": "登録",
+                "description": "必要な権限レベル: `010`以上\n\n権限レベルは`001`（一般ユーザー）で登録される。",
+                "operationId": "addUser",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["id", "password"],
+                                "properties": {
+                                    "id": {
+                                        "$ref": "#/components/schemas/UserIdValue"
+                                    },
+                                    "password": {
+                                        "$ref": "#/components/schemas/Password"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "$ref": "#/components/responses/UserResult"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
                 }
-              }
             }
-          }
-        }
-      },
-      "Unauthorized": {
-        "description": "認証失敗・トークンが無い／無効／期限切れ",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
+        },
+        "/users/{id}": {
+            "parameters": [
+                {
+                    "$ref": "#/components/parameters/UserId"
+                }
+            ],
+            "get": {
+                "tags": ["users"],
+                "summary": "詳細取得",
+                "description": "必要な権限レベル: `001`以上",
+                "operationId": "getUser",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/UserResult"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "put": {
+                "tags": ["users"],
+                "summary": "更新（パスワード変更）",
+                "description": "必要な権限レベル（共通ルールの例外）\n\n- 自分のパスワード: `001`以上\n- 自分以外のユーザーのパスワード: `111`（システム管理者）のみ",
+                "operationId": "updateUserPassword",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["password"],
+                                "properties": {
+                                    "password": {
+                                        "$ref": "#/components/schemas/Password"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/EmptyOk"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["users"],
+                "summary": "削除",
+                "description": "必要な権限レベル: `010`以上\n\nそのユーザーのトークンも削除される。",
+                "operationId": "deleteUser",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/EmptyOk"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
             }
-          }
-        }
-      },
-      "Forbidden": {
-        "description": "権限レベル不足",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
+        },
+        "/users/{id}/level": {
+            "put": {
+                "tags": ["users"],
+                "summary": "更新（権限変更）",
+                "description": "必要な権限レベル（共通ルールの例外）\n\n- 自分の権限レベル: 変更できない（403）\n- 自分以外のユーザーの権限レベル: `111`（システム管理者）のみ",
+                "operationId": "updateUserLevel",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/UserId"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["user_level"],
+                                "properties": {
+                                    "user_level": {
+                                        "$ref": "#/components/schemas/UserLevel"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/EmptyOk"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
             }
-          }
-        }
-      },
-      "NotFound": {
-        "description": "指定したリソースが存在しない",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
+        },
+        "/tokens/valid": {
+            "post": {
+                "tags": ["tokens"],
+                "summary": "有効性の確認",
+                "description": "チェック対象のトークンをボディで渡すため認証不要。\n有効（OK）の場合は有効期限を延長する。",
+                "operationId": "validToken",
+                "security": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["token"],
+                                "properties": {
+                                    "token": {
+                                        "$ref": "#/components/schemas/ShortToken"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "確認結果（`user_id`は有効（OK）の場合のみ含める）",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResponseBase"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "oneOf": [
+                                                        {
+                                                            "type": "object",
+                                                            "required": [
+                                                                "valid",
+                                                                "user_id"
+                                                            ],
+                                                            "properties": {
+                                                                "valid": {
+                                                                    "const": "OK"
+                                                                },
+                                                                "user_id": {
+                                                                    "$ref": "#/components/schemas/UserIdValue"
+                                                                }
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "required": [
+                                                                "valid"
+                                                            ],
+                                                            "properties": {
+                                                                "valid": {
+                                                                    "const": "NG"
+                                                                }
+                                                            },
+                                                            "additionalProperties": false
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "ok": {
+                                        "summary": "有効",
+                                        "value": {
+                                            "api_version": "1.0.0",
+                                            "api_route": "/api/v1/tokens/valid",
+                                            "send_at": "2026-10-13 17:00:00",
+                                            "message": "認証OKです",
+                                            "data": {
+                                                "valid": "OK",
+                                                "user_id": "abcd"
+                                            }
+                                        }
+                                    },
+                                    "ng": {
+                                        "summary": "無効",
+                                        "value": {
+                                            "api_version": "1.0.0",
+                                            "api_route": "/api/v1/tokens/valid",
+                                            "send_at": "2026-10-13 17:00:00",
+                                            "message": "認証できませんでした",
+                                            "data": { "valid": "NG" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
             }
-          }
         }
-      },
-      "Conflict": {
-        "description": "登録しようとしたIDが既に存在する",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "`POST /users/auth/{id}`で発行された短縮トークン（Base64URL・22文字）"
             }
-          }
-        }
-      },
-      "InternalServerError": {
-        "description": "サーバー内部のエラー（詳細はログにのみ出力）",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
+        },
+        "parameters": {
+            "UserId": {
+                "name": "id",
+                "in": "path",
+                "required": true,
+                "description": "ユーザーID",
+                "schema": {
+                    "$ref": "#/components/schemas/UserIdValue"
+                }
+            },
+            "Page": {
+                "name": "page",
+                "in": "query",
+                "required": false,
+                "description": "ページ番号（0始まり）。負の値は0として扱う。最終ページを超えた場合は空配列を返す",
+                "schema": {
+                    "type": "integer",
+                    "default": 0
+                }
+            },
+            "Rows": {
+                "name": "rows",
+                "in": "query",
+                "required": false,
+                "description": "1ページあたりの件数。0以下は既定値（10）として扱う",
+                "schema": {
+                    "type": "integer",
+                    "default": 10
+                }
             }
-          }
+        },
+        "schemas": {
+            "ResponseBase": {
+                "type": "object",
+                "description": "共通レスポンス形式",
+                "required": [
+                    "api_version",
+                    "api_route",
+                    "send_at",
+                    "message",
+                    "data"
+                ],
+                "properties": {
+                    "api_version": {
+                        "type": "string",
+                        "description": "APIのバージョン",
+                        "examples": ["1.0.0"]
+                    },
+                    "api_route": {
+                        "type": "string",
+                        "description": "リクエストされたURL",
+                        "examples": ["/api/v1/users/abcd"]
+                    },
+                    "send_at": {
+                        "type": "string",
+                        "description": "レスポンス送信日時（`Y-m-d H:i:s`、日本時間）",
+                        "examples": ["2026-10-13 17:00:00"]
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "利用者向けの日本語メッセージ"
+                    },
+                    "data": {
+                        "description": "結果データ。一覧はオブジェクトの配列、該当なしは空配列"
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "allOf": [
+                    { "$ref": "#/components/schemas/ResponseBase" },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "data": {
+                                "type": ["object", "array"],
+                                "description": "バリデーションエラーの場合は`errors`に項目名をキーとしたエラーメッセージの配列を入れる。それ以外は空配列",
+                                "properties": {
+                                    "errors": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "array",
+                                            "items": { "type": "string" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "User": {
+                "type": "object",
+                "description": "ユーザー情報（`password_hash`は返さない）",
+                "required": ["id", "user_level", "created_at", "updated_at"],
+                "properties": {
+                    "id": {
+                        "$ref": "#/components/schemas/UserIdValue"
+                    },
+                    "user_level": {
+                        "$ref": "#/components/schemas/UserLevel"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "description": "データ作成日時",
+                        "examples": ["2026-10-13 17:00:00"]
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "description": "データ更新日時",
+                        "examples": ["2026-10-13 17:00:00"]
+                    }
+                }
+            },
+            "UserIdValue": {
+                "type": "string",
+                "description": "ユーザーID（半角の英小文字と数字、4文字以上32文字以内）",
+                "minLength": 4,
+                "maxLength": 32,
+                "pattern": "^[a-z0-9]+$",
+                "examples": ["abcd"]
+            },
+            "Password": {
+                "type": "string",
+                "format": "password",
+                "description": "パスワード（8文字以上72文字以内、半角の英数字・記号のみ。英大文字・英小文字・数字・記号をそれぞれ1文字以上含む）",
+                "minLength": 8,
+                "maxLength": 72,
+                "pattern": "^[\\x21-\\x7e]+$"
+            },
+            "UserLevel": {
+                "type": "string",
+                "description": "権限レベル（`000`: 権限なし / `001`: 一般ユーザー / `010`: 編集可能ユーザー / `111`: システム管理者）",
+                "enum": ["000", "001", "010", "111"]
+            },
+            "ShortToken": {
+                "type": "string",
+                "description": "短縮トークン（Base64URL・22文字）",
+                "pattern": "^[A-Za-z0-9_-]{22}$",
+                "examples": ["AbCdEfGhIjKlMnOpQrStUv"]
+            }
+        },
+        "responses": {
+            "UserResult": {
+                "description": "成功（ユーザー情報を返す）",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                { "$ref": "#/components/schemas/ResponseBase" },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "EmptyOk": {
+                "description": "成功（`data`は空配列）",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ResponseBase"
+                        }
+                    }
+                }
+            },
+            "BadRequest": {
+                "description": "パラメータ不足・バリデーションエラー",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        },
+                        "example": {
+                            "api_version": "1.0.0",
+                            "api_route": "/api/v1/users",
+                            "send_at": "2026-10-13 17:00:00",
+                            "message": "パラメーターが正しくありません",
+                            "data": {
+                                "errors": {
+                                    "password": ["パスワードは8文字以上です"]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Unauthorized": {
+                "description": "認証失敗・トークンが無い／無効／期限切れ",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "Forbidden": {
+                "description": "権限レベル不足",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "NotFound": {
+                "description": "指定したリソースが存在しない",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "Conflict": {
+                "description": "登録しようとしたIDが既に存在する",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "InternalServerError": {
+                "description": "サーバー内部のエラー（詳細はログにのみ出力）",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
-      }
     }
-  }
 }

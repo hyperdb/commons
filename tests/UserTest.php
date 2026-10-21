@@ -237,15 +237,30 @@ class UserTest extends ApiTestCase
         $this->assertArrayNotHasKey('carol', $this->db->users);
     }
 
-    #[TestDox('登録: パスワードがないと400、レスポンスにパスワードを含めない')]
-    public function testAddWithoutPasswordReturns400(): void
+    #[TestDox('登録: 不正なIDとパスワードは400（data.errorsに両方）、レスポンスにパスワードを含めない')]
+    public function testAddWithInvalidParamsReturns400(): void
     {
-        $this->request('POST', '/api/v1/users', ['id' => 'carol'], token: $this->loginAs('010'));
+        $body = ['id' => 'Ab', 'password' => 'secr3tpw'];
+        $this->request('POST', '/api/v1/users', $body, token: $this->loginAs('010'));
 
         (new \User())->execAdd();
 
         $this->assertSame(400, $this->responseStatus());
-        $this->assertStringNotContainsString('password', \Flight::response()->getBody());
+        $this->assertSame(['id', 'password'], array_keys($this->json()['data']['errors']));
+        $this->assertStringNotContainsString('secr3tpw', \Flight::response()->getBody());
+        $this->assertCount(0, $this->db->executed('INSERT INTO users'));
+    }
+
+    #[TestDox('登録: 既に存在するIDは409')]
+    public function testAddDuplicateIdReturns409(): void
+    {
+        $body = ['id' => 'alice', 'password' => self::PASSWORD];
+        $this->request('POST', '/api/v1/users', $body, token: $this->loginAs('010'));
+
+        (new \User())->execAdd();
+
+        $this->assertSame(409, $this->responseStatus());
+        $this->assertCount(0, $this->db->executed('INSERT INTO users'));
     }
 
     // ==================================================
@@ -290,6 +305,32 @@ class UserTest extends ApiTestCase
         $this->assertSame(400, $this->responseStatus());
     }
 
+    #[TestDox('パスワード変更: ルールを満たさないパスワードは400（data.errors.password にエラー）')]
+    public function testPasswordChangeWithInvalidPasswordReturns400(): void
+    {
+        $this->request('PUT', '/api/v1/users/alice', ['password' => 'password'], token: $this->loginAs('001'));
+
+        (new \User())->execUpdate('alice');
+
+        $this->assertSame(400, $this->responseStatus());
+        $this->assertArrayHasKey('password', $this->json()['data']['errors']);
+        $this->assertCount(0, $this->db->executed('UPDATE users SET password_hash'));
+    }
+
+    #[TestDox('パスワード変更・削除: 存在しないユーザーは404')]
+    public function testUpdateAndDeleteNotFound(): void
+    {
+        $this->request('PUT', '/api/v1/users/nobody', ['password' => self::PASSWORD], token: $this->loginAs('111'));
+        (new \User())->execUpdate('nobody');
+        $this->assertSame(404, $this->responseStatus());
+
+        $this->setUp();
+        $this->request('DELETE', '/api/v1/users/nobody', token: $this->loginAs('111'));
+        (new \User())->execDelete('nobody');
+        $this->assertSame(404, $this->responseStatus());
+        $this->assertCount(0, $this->db->executed('DELETE FROM users'));
+    }
+
     // ==================================================
     // PUT /users/{id}/level — 権限レベルの変更
     // ==================================================
@@ -302,7 +343,7 @@ class UserTest extends ApiTestCase
         (new \User())->execUpdateLevel('bob');
 
         $this->assertSame(200, $this->responseStatus());
-        $this->assertSame('010', $this->json()['data']['user_level']);
+        $this->assertSame([], $this->json()['data']);
         $this->assertSame('010', $this->db->users['bob']['user_level']);
     }
 

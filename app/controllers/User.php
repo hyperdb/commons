@@ -132,33 +132,33 @@ class User extends Base implements BaseMethod
         {
             return;
         }
-        // POSTデータ取得
-        $password = $this->getBodyString("password", "");
-
-        if (empty($user_id) || empty($password))
+        // POSTデータ取得・バリデーション（エラーメッセージにパスワード自体は含まれない）
+        $validator = new UserValidator();
+        $validator->password = $this->getBodyString("password", "");
+        $errors = $validator->valid(["password"]);
+        if (count($errors) > 0)
         {
-            // 送信前に確認済みだが念のためどちらかでも入力されていなければBAD REQUEST
-            $this->resultJson(
-                [],
-                400,
-                $this->route,
-                "パラメーターが正しくありません"
-            );
+            $this->resultJson(["errors" => $errors], 400, $this->route, "パラメーターが正しくありません");
+            return;
         }
-        else
+        // 対象の存在確認（同じ値でUPDATEすると影響行数が0になるため、更新結果では判定しない）
+        if (count(UserModel::detail($user_id)) === 0)
         {
-            UserModel::update(
-                $user_id,
-                $this->generateHash($password)
-            );
-
-            $this->resultJson(
-                [],
-                200,
-                $this->route,
-                "更新できました"
-            );
+            $this->resultJson([], 404, $this->route, "見つかりませんでした");
+            return;
         }
+
+        UserModel::update(
+            $user_id,
+            $this->generateHash($validator->password)
+        );
+
+        $this->resultJson(
+            [],
+            200,
+            $this->route,
+            "更新できました"
+        );
     }
 
     /**
@@ -197,9 +197,9 @@ class User extends Base implements BaseMethod
         }
 
         UserModel::updateLevel($user_id, $validator->user_level);
-        // 変更後のユーザー情報を返す（password_hashは含まない）
+        // 他の更新系と揃えてユーザー情報は返さない
         $this->resultJson(
-            UserModel::detail($user_id),
+            [],
             200,
             $this->route,
             "権限レベルを変更しました"
@@ -219,26 +219,20 @@ class User extends Base implements BaseMethod
         {
             return;
         }
-        if (empty($user_id))
+        // 対象の存在確認
+        if (count(UserModel::detail($user_id)) === 0)
         {
-            // 送信前に確認済みだが念のため入力されていなければBAD REQUEST
-            $this->resultJson(
-                [],
-                400,
-                $this->route,
-                "パラメーターが正しくありません"
-            );
+            $this->resultJson([], 404, $this->route, "見つかりませんでした");
+            return;
         }
-        else
-        {
-            UserModel::delete($user_id);
-            $this->resultJson(
-                [],
-                200,
-                $this->route,
-                "削除できました"
-            );
-        }
+
+        UserModel::delete($user_id);
+        $this->resultJson(
+            [],
+            200,
+            $this->route,
+            "削除できました"
+        );
     }
 
     /**
@@ -253,33 +247,32 @@ class User extends Base implements BaseMethod
         {
             return;
         }
-        // POSTデータ取得
-        $id = $this->getBodyString("id", "");
-        $password = $this->getBodyString("password", "");
+        // POSTデータ取得・バリデーション（エラーメッセージにパスワード自体は含まれない）
+        $validator = new UserValidator();
+        $validator->id = $this->getBodyString("id", "");
+        $validator->password = $this->getBodyString("password", "");
+        $errors = $validator->valid(["id", "password"]);
+        if (count($errors) > 0)
+        {
+            $this->resultJson(["errors" => $errors], 400, $this->route, "パラメーターが正しくありません");
+            return;
+        }
+        // ID重複チェック
+        if (count(UserModel::detail($validator->id)) > 0)
+        {
+            $this->resultJson([], 409, $this->route, "このユーザーIDは既に登録されています");
+            return;
+        }
 
-        if (empty($id) || empty($password))
-        {
-            // 送信前に確認済みだが念のためどちらかでも入力されていなければBAD REQUEST
-            // （パスワードはレスポンスに含めない）
-            $this->resultJson(
-                [],
-                400,
-                $this->route,
-                "パラメーターが正しくありません"
-            );
-        }
-        else
-        {
-            // 権限レベルは既定値（001）で登録する
-            $this->add($id, $password);
-            // 登録したユーザー情報を返す（password_hashは含まない）
-            $this->resultJson(
-                UserModel::detail($id),
-                201,
-                $this->route,
-                "登録できました"
-            );
-        }
+        // 権限レベルは既定値（001）で登録する
+        $this->add($validator->id, $validator->password);
+        // 登録したユーザー情報を返す（password_hashは含まない）
+        $this->resultJson(
+            UserModel::detail($validator->id),
+            201,
+            $this->route,
+            "登録できました"
+        );
     }
 
     /**
