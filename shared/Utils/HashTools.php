@@ -17,6 +17,31 @@ use Sqids\Sqids;
  */
 class HashTools
 {
+    /** Sqidsのインスタンス（初回利用時に.envの`MY_ALPHABET`で初期化） */
+    private static ?Sqids $sqids = null;
+
+    /**
+     * .envの`MY_ALPHABET`を使ったSqidsのインスタンスを取得する
+     * 既定のアルファベットでは誰でも復元できるため、未設定の場合は例外とする
+     *
+     * @return Sqids
+     * @throws \RuntimeException `MY_ALPHABET`が未設定の場合
+     */
+    private static function sqids(): Sqids
+    {
+        if (self::$sqids === null)
+        {
+            $alphabet = strval($_ENV['MY_ALPHABET'] ?? "");
+            if ($alphabet === "")
+            {
+                throw new \RuntimeException("MY_ALPHABET is not set in .env");
+            }
+            // 最小の長さを揃える
+            self::$sqids = new Sqids($alphabet, 8);
+        }
+        return self::$sqids;
+    }
+
     /**
      * UUID V4を生成する
      *
@@ -107,18 +132,9 @@ class HashTools
      */
     public static function generateSqid(int $id): string
     {
-        $sqids = new Sqids();
+        $sqids = self::sqids();
 
-        /**
-         * [id, dummy, ....]の形にして生成する
-         */
         $container = [$id];
-        $count = rand(2, 4);
-        while ($count > 0)
-        {
-            $container[] = rand(1, $id * 2);
-            $count -= 1;
-        }
         return $sqids->encode($container);
     }
 
@@ -126,11 +142,11 @@ class HashTools
      * Sqidsを数値に戻す
      *
      * @param string $sqid
-     * @return integer
+     * @return int
      */
     public static function decodeSqid(string $sqid): int
     {
-        $sqids = new Sqids();
+        $sqids = self::sqids();
         $container = $sqids->decode($sqid);
         /**
          * [id, dummy, ....]の形に戻して先頭を取り出す
