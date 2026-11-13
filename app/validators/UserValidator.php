@@ -26,7 +26,8 @@ class UserValidator extends BaseValidator
                 "required",     // 必須
                 "minLength:4",  // 4文字以上
                 "maxLength:32", // 32文字以下
-                ["matchPattern", "/^[a-z0-9]+$/"]   // 半角英小文字・数字のみ
+                // 半角英小文字・数字・記号（-_.）のみ（先頭と末尾は英小文字・数字）
+                ["matchPattern", "/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/"]
             ]
         ],
         "password" => [

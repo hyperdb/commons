@@ -588,10 +588,10 @@
             },
             "UserIdValue": {
                 "type": "string",
-                "description": "ユーザーID（半角の英小文字と数字、4文字以上32文字以内）",
+                "description": "ユーザーID（半角の英小文字と数字と一部の記号（-_.）、4文字以上32文字以内。先頭と末尾に記号は使用不可）",
                 "minLength": 4,
                 "maxLength": 32,
-                "pattern": "^[a-z0-9]+$",
+                "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$",
                 "examples": ["abcd"]
             },
             "Password": {

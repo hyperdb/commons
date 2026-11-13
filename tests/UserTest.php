@@ -225,6 +225,55 @@ class UserTest extends ApiTestCase
         $this->assertTrue(password_verify(self::PASSWORD, $this->db->users['carol']['password_hash']));
     }
 
+    public static function validIdProvider(): array
+    {
+        return [
+            'ハイフン' => ['ca-rol'],
+            'アンダースコア' => ['ca_rol'],
+            'ドット' => ['ca.rol'],
+            '記号の組み合わせ' => ['c.a_r-ol'],
+            '数字のみ' => ['1234'],
+        ];
+    }
+
+    #[TestDox('登録: 記号（-_.）を含むIDは201')]
+    #[DataProvider('validIdProvider')]
+    public function testAddAcceptsIdWithSymbols(string $id): void
+    {
+        $body = ['id' => $id, 'password' => self::PASSWORD];
+        $this->request('POST', '/api/v1/users', $body, token: $this->loginAs('010'));
+
+        (new \User())->execAdd();
+
+        $this->assertSame(201, $this->responseStatus());
+        $this->assertSame($id, $this->json()['data']['id']);
+    }
+
+    public static function invalidIdProvider(): array
+    {
+        return [
+            '先頭が記号' => ['-carol'],
+            '末尾が記号' => ['carol.'],
+            '先頭と末尾が記号' => ['_carol_'],
+            '英大文字' => ['Carol'],
+            '許可されていない記号' => ['car@ol'],
+        ];
+    }
+
+    #[TestDox('登録: 不正なIDは400（data.errorsにid）')]
+    #[DataProvider('invalidIdProvider')]
+    public function testAddRejectsInvalidId(string $id): void
+    {
+        $body = ['id' => $id, 'password' => self::PASSWORD];
+        $this->request('POST', '/api/v1/users', $body, token: $this->loginAs('010'));
+
+        (new \User())->execAdd();
+
+        $this->assertSame(400, $this->responseStatus());
+        $this->assertSame(['id'], array_keys($this->json()['data']['errors']));
+        $this->assertCount(0, $this->db->executed('INSERT INTO users'));
+    }
+
     #[TestDox('登録: 権限レベル001は403')]
     public function testAddRequiresLevel010(): void
     {
