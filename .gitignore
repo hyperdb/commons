@@ -30,3 +30,4 @@ data/*
 
 REQUEST-*.md
 issues-*.md
+documents/*.temp.md
