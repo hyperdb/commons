@@ -27,7 +27,8 @@ class UserValidator extends BaseValidator
                 "minLength:4",  // 4文字以上
                 "maxLength:32", // 32文字以下
                 // 半角英小文字・数字・記号（-_.）のみ（先頭と末尾は英小文字・数字）
-                ["matchPattern", "/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/"]
+                // `gh-`・`gg-`で始まるIDは外部ユーザー用に予約（登録不可）
+                ["matchPattern", "/^(?!gh-|gg-)[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\z/"]
             ]
         ],
         "password" => [
@@ -36,7 +37,7 @@ class UserValidator extends BaseValidator
                 "required",     // 必須
                 "minLength:8",  // 8文字以上
                 "maxLength:72", // 72文字以下（bcryptの上限）
-                ["matchPattern", "/^[\x21-\x7e]+$/"],   // 半角の英数字・記号のみ（空白不可）
+                ["matchPattern", "/^[\x21-\x7e]+\z/"],   // 半角の英数字・記号のみ（空白不可）
                 "useAllChar"    // すべての文字種
             ]
         ],
@@ -44,7 +45,7 @@ class UserValidator extends BaseValidator
             "label" => "権限レベル",
             "pattern" => [
                 "required",     // 必須
-                ["matchPattern", "/^(000|001|010|111)$/"]   // 定義済みの権限レベルのみ
+                ["matchPattern", "/^(000|001|010|111)\z/"]   // 定義済みの権限レベルのみ
             ]
         ],
     ];

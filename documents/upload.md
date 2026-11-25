@@ -4,6 +4,7 @@
 
 - `📁app`
 - `📁enums`
+- `📁scripts`
 - `📁shared`
 - `📁vendor`
 - `index.php`
@@ -25,6 +26,8 @@
   - `/composer.json`
   - `/vendor/autoload.php`
   - `/app/controllers/User.php`
+  - `/scripts/import-areas.php`
+  - `/scripts/stop-external-user.php`
 - 存在しないパス（`/abc`）も JSON の 404 になる
 
 ### 第二段階

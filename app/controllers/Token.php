@@ -59,6 +59,18 @@ class Token extends Base
                 ];
                 $message = "認証OKです";
             }
+            elseif ($this->allowsExternal() && count($external = $this->findExternalTokenOwner($token)) > 0)
+            {
+                // 外部ユーザーのトークンは有効期限を延長しない
+                $data = [
+                    "valid" => "OK",
+                    "user_id" => strval($external["owner"]),
+                    "provider" => $external["provider"],
+                    "display_name" => $external["display_name"],
+                    "avatar_url" => $external["avatar_url"]
+                ];
+                $message = "認証OKです";
+            }
             else
             {
                 $data = [
@@ -74,5 +86,16 @@ class Token extends Base
                 $message
             );
         }
+    }
+
+    /**
+     * 外部ユーザーのトークンも認めるか
+     * 既存サイトで意図せず許可されないよう、真偽値のtrueが指定された場合だけ認める
+     *
+     * @return boolean
+     */
+    private function allowsExternal(): bool
+    {
+        return (Flight::request()->data["allow_external"] ?? null) === true;
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Phpunit;
 
 use App\Shared\Utils\HashTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
@@ -70,6 +71,70 @@ class TokenTest extends ApiTestCase
         // 延長対象は、短縮トークンを復元したUUID
         $extend = $this->db->executed('UPDATE tokens SET expired_at')[0];
         $this->assertSame([HashTools::expandShortUuidV4($token)], $extend['params']);
+    }
+
+    #[TestDox('有効なトークン（パスワードユーザー）には外部ユーザー用の項目を含めない')]
+    public function testPasswordUserHasNoExternalItems(): void
+    {
+        $this->callValid(['token' => $this->loginAs('001', 'bob')]);
+
+        $this->assertSame(['valid', 'user_id'], array_keys($this->json()['data']));
+    }
+
+    #[TestDox('外部ユーザーの有効なトークンは200でOK、表示名などを返し、有効期限は延長しない')]
+    public function testExternalTokenIsOkAndNotExtended(): void
+    {
+        $this->callValid(['token' => $this->loginAsExternal(), 'allow_external' => true]);
+
+        $this->assertSame(200, $this->responseStatus());
+        $this->assertSame([
+            'valid' => 'OK',
+            'user_id' => 'gh-12345',
+            'provider' => 'github',
+            'display_name' => 'Octo',
+            'avatar_url' => 'https://example.com/a.png',
+        ], $this->json()['data']);
+        $this->assertFalse($this->tokenExtended());
+        $this->assertCount(0, $this->db->executed('UPDATE'));
+    }
+
+    public static function externalNotAllowedProvider(): array
+    {
+        return [
+            '指定なし' => [[]],
+            'false' => [['allow_external' => false]],
+            '文字列のtrue' => [['allow_external' => 'true']],
+            '数値の1' => [['allow_external' => 1]],
+            '配列' => [['allow_external' => [true]]],
+        ];
+    }
+
+    #[TestDox('allow_externalがtrueでなければ、外部ユーザーの有効なトークンでもNG（ユーザー情報も返さない）')]
+    #[DataProvider('externalNotAllowedProvider')]
+    public function testExternalTokenIsNgUnlessAllowed(array $body): void
+    {
+        $this->callValid(['token' => $this->loginAsExternal(), ...$body]);
+
+        $this->assertSame(200, $this->responseStatus());
+        $this->assertSame(['valid' => 'NG'], $this->json()['data']);
+    }
+
+    #[TestDox('allow_externalを指定しても、パスワードユーザーの応答は変わらない')]
+    public function testAllowExternalDoesNotAffectPasswordUser(): void
+    {
+        $this->callValid(['token' => $this->loginAs('001', 'bob'), 'allow_external' => true]);
+
+        $this->assertSame(['valid' => 'OK', 'user_id' => 'bob'], $this->json()['data']);
+        $this->assertTrue($this->tokenExtended());
+    }
+
+    #[TestDox('停止中の外部ユーザーのトークンは200でNG')]
+    public function testStoppedExternalTokenIsNg(): void
+    {
+        $this->callValid(['token' => $this->loginAsExternal('2026-11-24 10:00:00'), 'allow_external' => true]);
+
+        $this->assertSame(200, $this->responseStatus());
+        $this->assertSame(['valid' => 'NG'], $this->json()['data']);
     }
 
     #[TestDox('レスポンスは共通形式（api_version / api_route / send_at / message / data）')]

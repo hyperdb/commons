@@ -2,6 +2,7 @@
 
 use App\Shared\Utils\HashTools;
 
+require_once __DIR__ . "/../models/ExternalTokenModel.php";
 require_once __DIR__ . "/../models/TokenModel.php";
 
 
@@ -135,13 +136,40 @@ class Base
      */
     protected function findTokenOwner(string $shortenToken): array
     {
-        // 短縮トークンの形式（Base64URL・22文字）でなければ無効（復元処理での例外を防ぐ）
-        if (!preg_match('/^[A-Za-z0-9_-]{22}$/', $shortenToken))
+        // 形式が正しくなければ無効（復元処理での例外を防ぐ）
+        if (!$this->isShortToken($shortenToken))
         {
             return [];
         }
         // 復元してUUID V4に戻し、期限内のトークンを検索
         return TokenModel::findOwner($this->expandID($shortenToken));
+    }
+
+    /**
+     * 短縮トークンから有効な外部トークンの所有ユーザーを取得する
+     *
+     * @param string $shortenToken
+     * @return array{owner?: string, provider?: string, display_name?: string, avatar_url?: string}
+     *         (無効なトークンの場合は空配列)
+     */
+    protected function findExternalTokenOwner(string $shortenToken): array
+    {
+        if (!$this->isShortToken($shortenToken))
+        {
+            return [];
+        }
+        return ExternalTokenModel::findOwner($this->expandID($shortenToken));
+    }
+
+    /**
+     * 短縮トークンの形式（Base64URL・22文字）か
+     *
+     * @param string $value
+     * @return boolean
+     */
+    private function isShortToken(string $value): bool
+    {
+        return preg_match('/^[A-Za-z0-9_-]{22}\z/', $value) === 1;
     }
 
     /**
@@ -155,6 +183,14 @@ class Base
         $owner = $this->findTokenOwner($this->bearer_token);
         if (count($owner) === 0)
         {
+            // 外部ユーザーは権限レベル000として扱う（有効期限は延長しない）
+            $external = $this->findExternalTokenOwner($this->bearer_token);
+            if (count($external) > 0)
+            {
+                $this->login_user_id = strval($external["owner"]);
+                $this->login_user_level = "000";
+                return true;
+            }
             $this->resultJson([], 401, $this->route, "認証できませんでした");
             return false;
         }

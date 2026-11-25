@@ -8,6 +8,7 @@ use Monolog\Handler\RotatingFileHandler;
 use Monolog\Formatter\LineFormatter;
 
 require __DIR__ . '/app/utils/CorsUtil.php';
+require __DIR__ . '/app/utils/HttpClient.php';
 
 // APIのバージョン（レスポンスの`api_version`に出力）
 const API_VERSION = '1.0.0';
@@ -42,11 +43,15 @@ Flight::register('logger', Monolog\Logger::class, [
     ]
 ]);
 
+// 外部ログインのプロバイダーとの通信
+Flight::register('httpClient', HttpClient::class);
+
 /**
  * ルーティング
  */
 require_once './app/controllers/User.php';
 require_once './app/controllers/Token.php';
+require_once './app/controllers/Auth.php';
 
 Flight::group('/api', function ()
 {
@@ -54,6 +59,7 @@ Flight::group('/api', function ()
     {
         User::registerRoutes();
         Token::registerRoutes();
+        Auth::registerRoutes();
     });
 });
 
@@ -93,16 +99,61 @@ $app->before('start', [$cors, 'set']);
  * アクセスログ
  */
 
+// 外部ログインのクエリ（code・stateなど）はログに残さない
+$log_url = Flight::request()->url;
+if (stripos($log_url, '/api/v1/auth/') !== false)
+{
+    $log_url = explode('?', $log_url, 2)[0];
+}
 $log_message = sprintf(
     "%s %s",
     Flight::request()->method,
-    Flight::request()->url
+    $log_url
 );
 $log_params = [
     "ip" => Flight::request()->ip,
     "host" => Flight::request()->host,
 ];
 Flight::logger()->debug($log_message, $log_params);
+
+/**
+ * 想定外のエラー（詳細はログにのみ出力し、レスポンスには含めない）
+ */
+Flight::map('error', function (Throwable $e) use ($log_url)
+{
+    // 引数にはパスワードなどが含まれるため、呼び出し元の場所だけを記録する
+    $trace = array_map(
+        fn(array $frame): string => sprintf(
+            "%s:%s %s",
+            $frame['file'] ?? '-',
+            $frame['line'] ?? '-',
+            ($frame['class'] ?? '') . ($frame['type'] ?? '') . $frame['function']
+        ),
+        $e->getTrace()
+    );
+    try
+    {
+        Flight::logger()->error(
+            sprintf("%s: %s (%s:%d)", $e::class, $e->getMessage(), $e->getFile(), $e->getLine()),
+            ["url" => $log_url, "trace" => $trace]
+        );
+    }
+    catch (Throwable $log_error)
+    {
+        // ログに書き込めない場合でも、レスポンスは共通形式で返す
+        error_log($e->getMessage() . " / " . $log_error->getMessage());
+    }
+
+    Flight::response()->clearBody();
+    Flight::json([
+        'api_version' => API_VERSION,
+        'api_route' => $log_url,
+        'send_at' => date("Y-m-d H:i:s"),
+        'message' => "サーバー内部でエラーが発生しました",
+        'data' => []
+    ], 500, true, 'utf-8', JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    Flight::response()->send();
+});
 
 /**
  * 処理開始

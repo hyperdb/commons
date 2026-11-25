@@ -27,3 +27,6 @@ data/*
 
 # 進捗メモ（Syncthingで同期・コミット対象外）
 .notes/
+
+REQUEST-*.md
+issues-*.md
