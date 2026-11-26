@@ -8,7 +8,6 @@ use Monolog\Handler\RotatingFileHandler;
 use Monolog\Formatter\LineFormatter;
 
 require __DIR__ . '/app/utils/CorsUtil.php';
-require __DIR__ . '/app/utils/HttpClient.php';
 
 // APIのバージョン（レスポンスの`api_version`に出力）
 const API_VERSION = '1.0.0';
@@ -43,15 +42,11 @@ Flight::register('logger', Monolog\Logger::class, [
     ]
 ]);
 
-// 外部ログインのプロバイダーとの通信
-Flight::register('httpClient', HttpClient::class);
-
 /**
  * ルーティング
  */
 require_once './app/controllers/User.php';
 require_once './app/controllers/Token.php';
-require_once './app/controllers/Auth.php';
 
 Flight::group('/api', function ()
 {
@@ -59,7 +54,6 @@ Flight::group('/api', function ()
     {
         User::registerRoutes();
         Token::registerRoutes();
-        Auth::registerRoutes();
     });
 });
 
@@ -99,16 +93,10 @@ $app->before('start', [$cors, 'set']);
  * アクセスログ
  */
 
-// 外部ログインのクエリ（code・stateなど）はログに残さない
-$log_url = Flight::request()->url;
-if (stripos($log_url, '/api/v1/auth/') !== false)
-{
-    $log_url = explode('?', $log_url, 2)[0];
-}
 $log_message = sprintf(
     "%s %s",
     Flight::request()->method,
-    $log_url
+    Flight::request()->url
 );
 $log_params = [
     "ip" => Flight::request()->ip,
@@ -119,7 +107,7 @@ Flight::logger()->debug($log_message, $log_params);
 /**
  * 想定外のエラー（詳細はログにのみ出力し、レスポンスには含めない）
  */
-Flight::map('error', function (Throwable $e) use ($log_url)
+Flight::map('error', function (Throwable $e)
 {
     // 引数にはパスワードなどが含まれるため、呼び出し元の場所だけを記録する
     $trace = array_map(
@@ -135,7 +123,7 @@ Flight::map('error', function (Throwable $e) use ($log_url)
     {
         Flight::logger()->error(
             sprintf("%s: %s (%s:%d)", $e::class, $e->getMessage(), $e->getFile(), $e->getLine()),
-            ["url" => $log_url, "trace" => $trace]
+            ["url" => Flight::request()->url, "trace" => $trace]
         );
     }
     catch (Throwable $log_error)
@@ -147,7 +135,7 @@ Flight::map('error', function (Throwable $e) use ($log_url)
     Flight::response()->clearBody();
     Flight::json([
         'api_version' => API_VERSION,
-        'api_route' => $log_url,
+        'api_route' => Flight::request()->url,
         'send_at' => date("Y-m-d H:i:s"),
         'message' => "サーバー内部でエラーが発生しました",
         'data' => []

@@ -233,8 +233,6 @@ class UserTest extends ApiTestCase
             'ドット' => ['ca.rol'],
             '記号の組み合わせ' => ['c.a_r-ol'],
             '数字のみ' => ['1234'],
-            '予約された接頭辞に似ている（ハイフンなし）' => ['gh1234'],
-            '予約された接頭辞が途中にある' => ['a-gh-1234'],
         ];
     }
 
@@ -260,8 +258,6 @@ class UserTest extends ApiTestCase
             '英大文字' => ['Carol'],
             '許可されていない記号' => ['car@ol'],
             '末尾が改行' => ["carol\n"],
-            '外部ユーザー用の接頭辞（GitHub）' => ['gh-12345'],
-            '外部ユーザー用の接頭辞（Google）' => ['gg-abcdef'],
         ];
     }
 

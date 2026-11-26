@@ -27,8 +27,7 @@ class UserValidator extends BaseValidator
                 "minLength:4",  // 4文字以上
                 "maxLength:32", // 32文字以下
                 // 半角英小文字・数字・記号（-_.）のみ（先頭と末尾は英小文字・数字）
-                // `gh-`・`gg-`で始まるIDは外部ユーザー用に予約（登録不可）
-                ["matchPattern", "/^(?!gh-|gg-)[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\z/"]
+                ["matchPattern", "/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\z/"]
             ]
         ],
         "password" => [
